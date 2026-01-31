@@ -4,7 +4,7 @@
 SG_ID="sg-021bb73561f3372ff" 
 AMI_ID="ami-0220d79f3f480ecf5"
 ZONE_ID="Z0439877UYVGSF6PAFL4"
-DOMAIN_NAME="daws88s.online"
+DOMAIN_NAME="chotu.online"
 
 for instance in $@
 do
