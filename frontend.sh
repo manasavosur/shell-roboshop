@@ -1,18 +1,20 @@
-#! /bin/bash
-USERID=$(id -u) #if id -u = 0 then it is root user else non root user
-LOGS_FOLDER="/var/log/shell-script" 
-LOGS_FILE="$LOGS_FOLDER/$0.log" 
+#!/bin/bash
+
+USERID=$(id -u)
+LOGS_FOLDER="/var/log/shell-roboshop"
+LOGS_FILE="$LOGS_FOLDER/$0.log"
 R="\e[31m"
 G="\e[32m"
 Y="\e[33m"
 N="\e[0m"
-
 SCRIPT_DIR=$PWD
+MONGODB_HOST=mongodb.chotu.online
 
 if [ $USERID -ne 0 ]; then
     echo -e "$R Please run this script with root user access $N" | tee -a $LOGS_FILE
     exit 1
 fi
+
 mkdir -p $LOGS_FOLDER
 
 VALIDATE(){
@@ -25,46 +27,26 @@ VALIDATE(){
 }
 
 dnf module disable nginx -y &>>$LOGS_FILE
-VALIDATE $? "disabling all nginx versions"
-
 dnf module enable nginx:1.24 -y &>>$LOGS_FILE
-VALIDATE $? "enabling nginx version 1.24"
-
 dnf install nginx -y &>>$LOGS_FILE
-VALIDATE $? "installing nginx"
+VALIDATE $? "Installing Nginx"
 
-systemctl enable nginx &>>$LOGS_FILE
-VALIDATE $? "enabling nginx"
+systemctl enable nginx  &>>$LOGS_FILE
+systemctl start nginx 
+VALIDATE $? "Enabled and started nginx"
 
-systemctl start nginx &>>$LOGS_FILE
-VALIDATE $? "starting nginx"
+rm -rf /usr/share/nginx/html/* 
+VALIDATE $? "Remove default content"
 
-rm -rf /usr/share/nginx/html/* &>>$LOGS_FILE
-VALIDATE $? "deleting nginx default hrml format"
+curl -o /tmp/frontend.zip https://roboshop-artifacts.s3.amazonaws.com/frontend-v3.zip &>>$LOGS_FILE
+cd /usr/share/nginx/html 
+unzip /tmp/frontend.zip &>>$LOGS_FILE
+VALIDATE $? "Downloaded and unzipped frontend"
 
-if [ -f /tmp/frontend.zip ]; then
-    echo -e "$Y frontend code already downloaded... unzipping $N" | tee -a "$LOGS_FILE"
-else
-    curl -o /tmp/frontend.zip https://roboshop-artifacts.s3.amazonaws.com/frontend-v3.zip &>>"$LOGS_FILE"
-    VALIDATE $? "downloading frontend code"
-fi
+rm -rf /etc/nginx/nginx.conf
 
-cd /usr/share/nginx/html &>>"$LOGS_FILE"
+cp $SCRIPT_DIR/nginx.conf /etc/nginx/nginx.conf
+VALIDATE $? "Copied our nginx conf file"
 
-unzip -o /tmp/frontend.zip &>>"$LOGS_FILE"
-VALIDATE $? "unzipping frontend code"
-
-
-# Backup existing nginx.conf if exists
-if [ -f /etc/nginx/nginx.conf ]; then
-    mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.back &>>$LOGS_FILE
-    VALIDATE $? "backing up existing nginx.conf"
-fi
-
-# Copy custom nginx.conf
-cp "$SCRIPT_DIR/nginx.conf" /etc/nginx/nginx.conf &>>$LOGS_FILE
-VALIDATE $? "copying custom nginx.conf"
-
-
-systemctl restart nginx &>>$LOGS_FILE
-VALIDATE $? "restarting nginx"
+systemctl restart nginx
+VALIDATE $? "Restarted Nginx"
